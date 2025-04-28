@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use bytes::Bytes;
 use clap::{arg, Parser};
 use quinn::{ClientConfig, Endpoint, ServerConfig, VarInt};
 use rustls::{Certificate, PrivateKey};
@@ -54,6 +55,20 @@ impl Metrics {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_ansi(false)
+        .init();
+
+    // tracing_subscriber::registry()
+    //     .with(
+    //         tracing_subscriber::fmt::layer() //
+    //             .with_file(true)
+    //             .with_line_number(true),
+    //     )
+    //     .with(tracing_subscriber::EnvFilter::from_default_env())
+    //     .init();
+
     let cli: CliArgs = CliArgs::parse();
     let config = match read_yaml::<Config>(&cli.config) {
         Ok(config) => config,
@@ -175,8 +190,7 @@ async fn run_subscriber(metrics: Arc<Metrics>, server_addr: SocketAddr) -> Resul
     while let Ok(mut stream) = connection.accept_uni().await {
         let metrics = metrics_clone.clone();
 
-        let mut buf = vec![0u8; BLOCK_SIZE]; // twice as expected data
-        let mut pos = 0; // how much valid data we have
+        let mut buf = vec![0u8; BLOCK_SIZE];
         loop {
             match stream.read_exact(&mut buf).await {
                 Ok(_) => {
