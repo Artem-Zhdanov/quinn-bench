@@ -179,20 +179,33 @@ async fn run_subscriber(metrics: Arc<Metrics>, server_addr: SocketAddr) -> Resul
                 let metrics = metrics_clone.clone();
 
                 tokio::spawn(async move {
-                    let mut buf = vec![0u8; BLOCK_SIZE];
+                    let mut buf = vec![0u8; BLOCK_SIZE * 2]; // twice as expected data
+                    let mut pos = 0; // how much valid data we have
                     loop {
-                        match stream.read_exact(&mut buf).await {
-                            Ok(()) => {
-                                metrics.bytes.fetch_add(BLOCK_SIZE, Ordering::Relaxed);
+                        let result = stream.read(&mut buf[pos..]).await;
+                        match result {
+                            Ok(Some(n)) => {
+                                if n > 0 {
+                                    metrics.bytes.fetch_add(n, Ordering::Relaxed);
+                                    pos += n;
+                                }
                                 tokio::task::yield_now().await;
-
+                            }
+                            Ok(None) => {
                                 metrics.blocks.fetch_add(1, Ordering::Relaxed);
-                                let header_bytes = &buf[0..8];
 
-                                let sent_timestamp =
-                                    u64::from_be_bytes(header_bytes.try_into().unwrap());
+                                if pos >= 8 {
+                                    let header_bytes = &buf[0..8];
 
-                                println!("Sent ms: {}", now_ms() - sent_timestamp);
+                                    let sent_timestamp =
+                                        u64::from_be_bytes(header_bytes.try_into().unwrap());
+
+                                    println!("Delay ms: {}", now_ms() - sent_timestamp);
+                                } else {
+                                    eprintln!("Received incomplete data, only {} bytes", pos);
+                                }
+
+                                break;
                             }
                             Err(e) => {
                                 eprintln!("Error reading: {}", e);
@@ -215,29 +228,30 @@ async fn publish(server_addr: SocketAddr) -> Result<()> {
     let connection = endpoint.connect(server_addr, "localhost")?.await?;
 
     let mut data = vec![42u8; BLOCK_SIZE];
-    let mut stream: quinn::SendStream = connection.open_uni().await?;
 
     loop {
-        //let moment = Instant::now();
+        let moment = Instant::now();
 
         data[0..8].copy_from_slice(&now_ms().to_be_bytes());
 
+        let mut stream: quinn::SendStream = connection.open_uni().await?;
+
         match stream.write_all(&data).await {
             Ok(_) => {
-                // if let Err(e) = stream.finish().await {
-                //     eprintln!("Error closing stream: {}", e);
-                // }
+                if let Err(e) = stream.finish().await {
+                    eprintln!("Error closing stream: {}", e);
+                }
             }
             Err(e) => {
                 eprintln!("Error send data: {}", e);
                 anyhow::bail!(e);
             }
         }
-        tokio::task::yield_now().await;
-        // tokio::time::sleep(Duration::from_micros(
-        //     300000 - moment.elapsed().as_micros() as u64,
-        // ))
-        // .await;
+        // tokio::task::yield_now().await;
+        tokio::time::sleep(Duration::from_micros(
+            300000 - moment.elapsed().as_micros() as u64,
+        ))
+        .await;
     }
 }
 
