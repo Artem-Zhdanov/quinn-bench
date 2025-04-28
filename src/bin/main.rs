@@ -150,73 +150,66 @@ async fn run_subscriber(metrics: Arc<Metrics>, server_addr: SocketAddr) -> Resul
     let server_config = configure_server()?;
     let endpoint = Endpoint::server(server_config, server_addr)?;
 
-    loop {
-        let accept = endpoint.accept().await;
+    let accept = endpoint.accept().await;
 
-        let connecting = match accept {
-            Some(connecting) => connecting,
-            None => {
-                println!("endpoint closed");
-                anyhow::bail!("endpoint closed");
-            }
-        };
+    let connecting = match accept {
+        Some(connecting) => connecting,
+        None => {
+            println!("endpoint closed");
+            anyhow::bail!("endpoint closed");
+        }
+    };
 
-        let connection = match connecting.await {
-            Ok(connection) => {
-                println!("new conection {:?}", connection.remote_address());
-                connection
-            }
-            Err(e) => {
-                eprintln!("Error: {}", e);
-                continue;
-            }
-        };
+    let connection = match connecting.await {
+        Ok(connection) => {
+            println!("new conection {:?}", connection.remote_address());
+            connection
+        }
+        Err(e) => {
+            bail!("Error: {}", e);
+        }
+    };
 
-        let metrics_clone = metrics.clone();
+    let metrics_clone = metrics.clone();
 
-        tokio::spawn(async move {
-            while let Ok(mut stream) = connection.accept_uni().await {
-                let metrics = metrics_clone.clone();
+    while let Ok(mut stream) = connection.accept_uni().await {
+        let metrics = metrics_clone.clone();
 
-                tokio::spawn(async move {
-                    let mut buf = vec![0u8; BLOCK_SIZE * 2]; // twice as expected data
-                    let mut pos = 0; // how much valid data we have
-                    loop {
-                        let result = stream.read(&mut buf[pos..]).await;
-                        match result {
-                            Ok(Some(n)) => {
-                                if n > 0 {
-                                    metrics.bytes.fetch_add(n, Ordering::Relaxed);
-                                    pos += n;
-                                }
-                                tokio::task::yield_now().await;
-                            }
-                            Ok(None) => {
-                                metrics.blocks.fetch_add(1, Ordering::Relaxed);
-
-                                if pos >= 8 {
-                                    let header_bytes = &buf[0..8];
-
-                                    let sent_timestamp =
-                                        u64::from_be_bytes(header_bytes.try_into().unwrap());
-
-                                    println!("Delay ms: {}", now_ms() - sent_timestamp);
-                                } else {
-                                    eprintln!("Received incomplete data, only {} bytes", pos);
-                                }
-
-                                break;
-                            }
-                            Err(e) => {
-                                eprintln!("Error reading: {}", e);
-                                break;
-                            }
-                        }
+        let mut buf = vec![0u8; BLOCK_SIZE * 2]; // twice as expected data
+        let mut pos = 0; // how much valid data we have
+        loop {
+            let result = stream.read(&mut buf[pos..]).await;
+            match result {
+                Ok(Some(n)) => {
+                    if n > 0 {
+                        metrics.bytes.fetch_add(n, Ordering::Relaxed);
+                        pos += n;
                     }
-                });
-            } // While loop for stream
-        });
+                    tokio::task::yield_now().await;
+                }
+                Ok(None) => {
+                    metrics.blocks.fetch_add(1, Ordering::Relaxed);
+
+                    if pos >= 8 {
+                        let header_bytes = &buf[0..8];
+
+                        let sent_timestamp = u64::from_be_bytes(header_bytes.try_into().unwrap());
+
+                        println!("Delay ms: {}", now_ms() - sent_timestamp);
+                    } else {
+                        eprintln!("Received incomplete data, only {} bytes", pos);
+                    }
+
+                    break;
+                }
+                Err(e) => {
+                    eprintln!("Error reading: {}", e);
+                    break;
+                }
+            }
+        }
     }
+    Ok(())
 }
 
 async fn publish(server_addr: SocketAddr) -> Result<()> {
