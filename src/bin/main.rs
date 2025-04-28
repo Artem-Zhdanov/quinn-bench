@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::{arg, Parser};
 use quinn::{ClientConfig, Endpoint, ServerConfig, VarInt};
 use rustls::{Certificate, PrivateKey};
@@ -248,10 +248,12 @@ async fn publish(server_addr: SocketAddr) -> Result<()> {
             }
         }
         // tokio::task::yield_now().await;
-        tokio::time::sleep(Duration::from_micros(
-            300000 - moment.elapsed().as_micros() as u64,
-        ))
-        .await;
+        let elapsed = moment.elapsed().as_millis() as u64;
+        if elapsed < 300 {
+            tokio::time::sleep(Duration::from_micros(300 - elapsed)).await;
+        } else {
+            eprintln!("Elapsed time is too long: {} ms", elapsed);
+        }
     }
 }
 
@@ -267,9 +269,6 @@ async fn run_report(metrics: Arc<Metrics>) -> Result<()> {
         let blocks = metrics.blocks.load(Ordering::Relaxed);
         let micros = moment.elapsed().as_micros();
 
-        let speed_bytes = ((bytes * 1_000_000) / micros as usize) as f64;
-        let speed_blocks = ((blocks * 1_000_000) / micros as usize) as f64;
-
         let delta_bytes = bytes - prev_bytes;
         let delta_blocks = blocks - prev_blocks;
 
@@ -278,14 +277,11 @@ async fn run_report(metrics: Arc<Metrics>) -> Result<()> {
         let moment_speed_blocks = ((delta_blocks * 1_000_000) / delta_micros as usize) as f64;
 
         println!(
-            "Speed in bytes: {:.2} GB, at moment {:.2} GB",
-            speed_bytes / (1024.0 * 1024.0 * 1024.0),
-            moment_speed_bytes / (1024.0 * 1024.0 * 1024.0)
+            "Speed {:.2} GB, ({}) blocks",
+            moment_speed_bytes / (1024.0 * 1024.0 * 1024.0),
+            moment_speed_blocks
         );
-        println!(
-            "Speed in blocks:  {}, at moment {}",
-            speed_blocks, moment_speed_blocks
-        );
+
         println!(
             "Totals: bytes {}, blocks: {}\n-------------------------------",
             bytes, blocks
