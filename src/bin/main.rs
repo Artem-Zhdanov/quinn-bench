@@ -211,7 +211,6 @@ async fn run_subscriber(metrics: Arc<Metrics>, server_addr: SocketAddr) -> Resul
     }
     Ok(())
 }
-
 async fn publish(server_addr: SocketAddr) -> Result<()> {
     let client_config = configure_client()?;
 
@@ -243,7 +242,7 @@ async fn publish(server_addr: SocketAddr) -> Result<()> {
         // tokio::task::yield_now().await;
         let elapsed = moment.elapsed().as_millis() as u64;
         if elapsed < 300 {
-            tokio::time::sleep(Duration::from_micros(300 - elapsed)).await;
+            tokio::time::sleep(Duration::from_millis(300 - elapsed)).await;
         } else {
             eprintln!("Elapsed time is too long: {} ms", elapsed);
         }
