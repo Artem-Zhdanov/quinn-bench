@@ -1,19 +1,26 @@
-use anyhow::{bail, Result};
-use bytes::Bytes;
+use anyhow::Result;
 use clap::{arg, Parser};
-use quinn::{ClientConfig, Endpoint, ServerConfig, VarInt};
-use rustls::{Certificate, PrivateKey};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::time::Duration;
+use std::time::Instant;
 use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs},
+    net::{SocketAddr, ToSocketAddrs},
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
-    time::Duration,
 };
-use tokio::time::{sleep, Instant};
+use tokio::time::sleep;
+use tracing::info;
+use wtransport::ClientConfig;
+use wtransport::Endpoint;
+use wtransport::Identity;
+use wtransport::ServerConfig;
+use wtransport::{
+    config::QuicTransportConfig,
+    quinn::{AckFrequencyConfig, VarInt},
+};
 
 const BLOCK_SIZE: usize = 200 * 1024; // 200KB
 
@@ -60,15 +67,6 @@ async fn main() -> Result<()> {
         .with_ansi(false)
         .init();
 
-    // tracing_subscriber::registry()
-    //     .with(
-    //         tracing_subscriber::fmt::layer() //
-    //             .with_file(true)
-    //             .with_line_number(true),
-    //     )
-    //     .with(tracing_subscriber::EnvFilter::from_default_env())
-    //     .init();
-
     let cli: CliArgs = CliArgs::parse();
     let config = match read_yaml::<Config>(&cli.config) {
         Ok(config) => config,
@@ -112,78 +110,70 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn configure_server() -> Result<ServerConfig> {
-    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
-    let cert_der = cert.serialize_der().unwrap();
-    let priv_key = cert.serialize_private_key_der();
-    let priv_key = PrivateKey(priv_key);
-    let cert_chain = vec![Certificate(cert_der)];
+pub fn get_transport_config() -> std::sync::Arc<wtransport::quinn::TransportConfig> {
+    let mut ack_freq_conf = AckFrequencyConfig::default();
+    ack_freq_conf.max_ack_delay(Some(Duration::from_millis(1)));
+    ack_freq_conf.ack_eliciting_threshold(VarInt::from_u32(0));
 
-    let mut server_config = ServerConfig::with_crypto(Arc::new(
-        rustls::ServerConfig::builder()
-            .with_safe_defaults()
-            .with_no_client_auth()
-            .with_single_cert(cert_chain, priv_key)?,
-    ));
+    let mut quic_transport_config = QuicTransportConfig::default();
+    quic_transport_config.ack_frequency_config(Some(ack_freq_conf));
+    quic_transport_config.max_concurrent_uni_streams(VarInt::from_u32(10000));
 
-    server_config.transport_config(configure_transport());
-    Ok(server_config)
+    quic_transport_config.send_window(4 * 1024 * 1024);
+    quic_transport_config.receive_window(VarInt::from_u32(4 * 1024 * 1024));
+    quic_transport_config.stream_receive_window(VarInt::from_u32(2 * 1024 * 1024));
+
+    // quic_transport_config.congestion_controller_factory(std::sync::Arc::new(
+    //     wtransport::quinn::congestion::BbrConfig::default(),
+    // ));
+
+    let trans_conf = std::sync::Arc::new(quic_transport_config);
+    // let trans_conf = std::sync::Arc::new(QuicTransportConfig::default());
+
+    trans_conf
+}
+
+fn configure_server(port: u16) -> Result<ServerConfig> {
+    let mut config = ServerConfig::builder()
+        .with_bind_default(port)
+        .with_identity(Identity::self_signed(["server"]).unwrap())
+        .keep_alive_interval(Some(Duration::from_secs(3)))
+        .build();
+
+    config
+        .quic_config_mut()
+        .transport_config(get_transport_config());
+    println!("CONFIG: {:#?}", config);
+    Ok(config)
 }
 
 fn configure_client() -> Result<ClientConfig> {
-    let mut client_config = ClientConfig::new(Arc::new(
-        rustls::ClientConfig::builder()
-            .with_safe_defaults()
-            .with_custom_certificate_verifier(Arc::new(SkipServerVerification))
-            .with_no_client_auth(),
-    ));
+    let mut config = ClientConfig::builder()
+        .with_bind_default()
+        .with_no_cert_validation()
+        .build();
 
-    client_config.transport_config(configure_transport());
-    Ok(client_config)
-}
-
-fn configure_transport() -> Arc<quinn::TransportConfig> {
-    let mut transport_config = quinn::TransportConfig::default();
-
-    transport_config
-        .max_concurrent_uni_streams(VarInt::from_u32(1024))
-        // .max_idle_timeout(Some(quinn::IdleTimeout::from(Duration::from_secs(30))))
-        .keep_alive_interval(Some(Duration::from_secs(5)))
-        .stream_receive_window(VarInt::from_u32(10 * 1024 * 1024)) // 10MB
-        .receive_window(VarInt::from_u32(10 * 1024 * 1024)) // 10MB
-        .send_window(10 * 1024 * 1024) // 10MB
-        .max_concurrent_uni_streams(VarInt::from_u32(4096))
-        .stream_receive_window(VarInt::from_u32(50 * 1024 * 1024)) // 50MB
-        .receive_window(VarInt::from_u32(50 * 1024 * 1024)) // 50MB
-        .send_window(50 * 1024 * 1024) // 50MB
-        .allow_spin(true);
-
-    Arc::new(transport_config)
+    config
+        .quic_config_mut()
+        .transport_config(get_transport_config());
+    Ok(config)
 }
 
 async fn run_subscriber(metrics: Arc<Metrics>, server_addr: SocketAddr) -> Result<()> {
-    let server_config = configure_server()?;
-    let endpoint = Endpoint::server(server_config, server_addr)?;
+    let server_config = configure_server(server_addr.port())?;
+    let server = Endpoint::server(server_config)?;
 
-    let accept = endpoint.accept().await;
+    let incoming_session = server.accept().await;
 
-    let connecting = match accept {
-        Some(connecting) => connecting,
-        None => {
-            println!("endpoint closed");
-            anyhow::bail!("endpoint closed");
-        }
-    };
+    let session_request = incoming_session.await?;
 
-    let connection = match connecting.await {
-        Ok(connection) => {
-            println!("new conection {:?}", connection.remote_address());
-            connection
-        }
-        Err(e) => {
-            bail!("Error: {}", e);
-        }
-    };
+    info!(
+        "New session: Authority: '{}', Path: '{}'",
+        session_request.authority(),
+        session_request.path()
+    );
+
+    let connection = session_request.accept().await?;
 
     let metrics_clone = metrics.clone();
 
@@ -212,15 +202,17 @@ async fn run_subscriber(metrics: Arc<Metrics>, server_addr: SocketAddr) -> Resul
     Ok(())
 }
 async fn publish(server_addr: SocketAddr) -> Result<()> {
-    let client_config = configure_client()?;
-
-    let mut endpoint = Endpoint::client(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0))?;
-    endpoint.set_default_client_config(client_config);
-
-    let connection = endpoint.connect(server_addr, "localhost")?.await?;
+    let config = configure_client()?;
+    let url = format!("https://{}", server_addr.to_string());
+    //let url = format!("https://[::1]:{}", server_addr.port());
+    let connection = Endpoint::client(config)
+        .unwrap()
+        .connect(url)
+        .await
+        .unwrap();
 
     let mut data = vec![42u8; BLOCK_SIZE];
-    let mut stream: quinn::SendStream = connection.open_uni().await?;
+    let mut stream = connection.open_uni().await.unwrap().await.unwrap();
 
     loop {
         let moment = Instant::now();
@@ -281,22 +273,6 @@ async fn run_report(metrics: Arc<Metrics>) -> Result<()> {
         prev_bytes = bytes;
         prev_blocks = blocks;
         prev_micros = micros;
-    }
-}
-
-struct SkipServerVerification;
-
-impl rustls::client::ServerCertVerifier for SkipServerVerification {
-    fn verify_server_cert(
-        &self,
-        _end_entity: &Certificate,
-        _intermediates: &[Certificate],
-        _server_name: &rustls::ServerName,
-        _scts: &mut dyn Iterator<Item = &[u8]>,
-        _ocsp_response: &[u8],
-        _now: std::time::SystemTime,
-    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
-        Ok(rustls::client::ServerCertVerified::assertion())
     }
 }
 

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-quinn = "0.10.2"
+
 tokio = { version = "1.32.0", features = ["full"] }
 rustls = { version = "0.21.7", features = ["dangerous_configuration"] }
 webpki = "0.22.0"
@@ -19,6 +19,11 @@ serde_yaml = { version = "0.9" }
 shellexpand = { version = "3.1.0", features = ["path"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing = "0.1"
+wtransport = { version = "0.6.1", features = [
+    "self-signed",
+    "quinn",
+    "dangerous-configuration",
+] }
 
 [profile.release]
 opt-level = 3
