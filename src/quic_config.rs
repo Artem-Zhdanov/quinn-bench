@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::time::Duration;
+use wtransport::quinn::MtuDiscoveryConfig;
 use wtransport::ClientConfig;
 use wtransport::Identity;
 use wtransport::ServerConfig;
@@ -36,20 +37,27 @@ pub fn configure_client() -> Result<ClientConfig> {
 
 fn get_transport_config() -> std::sync::Arc<wtransport::quinn::TransportConfig> {
     let mut ack_freq_conf = AckFrequencyConfig::default();
-    //ack_freq_conf.max_ack_delay(Some(Duration::from_millis(1)));
+    ack_freq_conf.max_ack_delay(Some(Duration::from_millis(1)));
     ack_freq_conf.ack_eliciting_threshold(VarInt::from_u32(0));
 
     let mut quic_transport_config = QuicTransportConfig::default();
     quic_transport_config.ack_frequency_config(Some(ack_freq_conf));
 
-    quic_transport_config.send_window(4 * 1024 * 1024);
-    quic_transport_config.receive_window(VarInt::from_u32(4 * 1024 * 1024));
-    quic_transport_config.stream_receive_window(VarInt::from_u32(2 * 1024 * 1024));
+    quic_transport_config.send_window(40 * 1024 * 1024);
+    quic_transport_config.receive_window(VarInt::from_u32(40 * 1024 * 1024));
+    quic_transport_config.stream_receive_window(VarInt::from_u32(20 * 1024 * 1024));
     // quic_transport_config.initial_rtt(Duration::from_millis(1));
 
     quic_transport_config.max_concurrent_uni_streams(VarInt::from_u32(1000));
 
-    //quic_transport_config.
+    // quic_transport_config.crypto_buffer_size(10000000000);
+    //  quic_transport_config.enable_segmentation_offload(true);
+
+    let mut mtu_disc_conf = MtuDiscoveryConfig::default();
+    mtu_disc_conf.interval(Duration::from_secs(10));
+    mtu_disc_conf.upper_bound(65527);
+    quic_transport_config.mtu_discovery_config(Some(mtu_disc_conf));
+
     let congestion_proto = wtransport::quinn::congestion::NewRenoConfig::default();
     // let congestion_proto = wtransport::quinn::congestion::BbrConfig::default();
 
