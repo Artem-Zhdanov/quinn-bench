@@ -1,15 +1,15 @@
 use anyhow::Result;
 use std::time::Duration;
-use std::{net::SocketAddr, time::Instant};
+use std::time::Instant;
 use wtransport::Endpoint;
 
 use crate::config::BLOCK_SIZE;
 use crate::now_ms;
 use crate::quic_config::configure_client;
 
-pub async fn run(server_addr: SocketAddr) -> Result<()> {
+pub async fn run(addr: String, port: u16) -> Result<()> {
     let config = configure_client()?;
-    let url = format!("https://{}", server_addr);
+    let url = format!("https://{}:{}", addr, port);
     let connection = Endpoint::client(config)?.connect(url).await?;
 
     let mut data = vec![42u8; BLOCK_SIZE];

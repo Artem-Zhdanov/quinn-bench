@@ -1,7 +1,7 @@
 use anyhow::Result;
 
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use std::{net::SocketAddr, sync::atomic::Ordering};
 use wtransport::Endpoint;
 
 use crate::config::BLOCK_SIZE;
@@ -9,12 +9,8 @@ use crate::metrics::{Metrics, OtMetrics};
 use crate::now_ms;
 use crate::quic_config::configure_server;
 
-pub async fn run(
-    metrics: Arc<Metrics>,
-    ot_metrics: Arc<OtMetrics>,
-    server_addr: SocketAddr,
-) -> Result<()> {
-    let server_config = configure_server(server_addr.port())?;
+pub async fn run(metrics: Arc<Metrics>, ot_metrics: Arc<OtMetrics>, port: u16) -> Result<()> {
+    let server_config = configure_server(port)?;
     let server = Endpoint::server(server_config)?;
 
     let incoming_session = server.accept().await;

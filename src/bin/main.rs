@@ -3,7 +3,7 @@ use clap::Parser;
 use quic_rust_test::{
     config::{read_yaml, ActiveSubscribers, CliArgs, Config, Subscriber},
     metrics::{init_metrics, Metrics},
-    publisher, subscriber,
+    ports_string_to_vec, publisher, subscriber,
 };
 use std::{sync::atomic::Ordering, time::Instant};
 use std::{sync::Arc, time::Duration};
@@ -29,25 +29,30 @@ async fn main() -> Result<()> {
     let metrics: Arc<Metrics> = Arc::new(Metrics::new());
 
     // Run subscribers
-    for Subscriber { addr } in config.subscribers {
-        let metrics_clone = metrics.clone();
-        let ot_metrics_clone = ot_metrics.clone();
-        let _ = tokio::spawn(async move {
-            if let Err(err) = subscriber::run(metrics_clone, ot_metrics_clone, addr).await {
-                eprintln!("Subscriber error: {}", err);
-            }
-        });
+    for Subscriber { ports } in config.subscribers {
+        for port in ports_string_to_vec(&ports)? {
+            let metrics_clone = metrics.clone();
+            let ot_metrics_clone = ot_metrics.clone();
+            let _ = tokio::spawn(async move {
+                if let Err(err) = subscriber::run(metrics_clone, ot_metrics_clone, port).await {
+                    eprintln!("Subscriber error: {}", err);
+                }
+            });
+        }
     }
 
     sleep(Duration::from_secs(1)).await;
 
     // Run publisher
-    for ActiveSubscribers { addr } in config.publisher {
-        let _ = tokio::spawn(async move {
-            if let Err(err) = publisher::run(addr).await {
-                eprintln!("Publisher task failed: {}", err);
-            }
-        });
+    for ActiveSubscribers { addr, ports } in config.publisher {
+        for port in ports_string_to_vec(&ports)? {
+            let addr_clone = addr.clone();
+            let _ = tokio::spawn(async move {
+                if let Err(err) = publisher::run(addr_clone, port).await {
+                    eprintln!("Publisher task failed: {}", err);
+                }
+            });
+        }
     }
 
     let metrics_clone = metrics.clone();
