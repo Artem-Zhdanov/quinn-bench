@@ -32,11 +32,11 @@ pub async fn run(addr: String, port: u16) -> Result<()> {
             }
         }
         // tokio::task::yield_now().await;
-        let elapsed = moment.elapsed().as_millis() as u64;
-        if elapsed < 330 {
-            tokio::time::sleep(Duration::from_millis(330 - elapsed)).await;
-        } else {
-            eprintln!("Elapsed time is too long: {} ms", elapsed);
-        }
+        // let elapsed = moment.elapsed().as_millis() as u64;
+        // if elapsed < 330 {
+        //     tokio::time::sleep(Duration::from_millis(330 - elapsed)).await;
+        // } else {
+        //     eprintln!("Elapsed time is too long: {} ms", elapsed);
+        // }
     }
 }

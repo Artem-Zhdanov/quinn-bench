@@ -31,18 +31,21 @@ pub async fn run(metrics: Arc<Metrics>, ot_metrics: Arc<OtMetrics>, port: u16) -
     while let Ok(mut stream) = connection.accept_uni().await {
         let metrics = metrics_clone.clone();
 
-        let mut buf = vec![0u8; BLOCK_SIZE];
+        let mut buf: Vec<u8> = vec![];
         // loop {
         match stream.read_to_end(&mut buf).await {
             Ok(_) => {
                 metrics.blocks.fetch_add(1, Ordering::Relaxed);
-
                 let header_bytes = &buf[0..8];
 
                 let sent_timestamp = u64::from_be_bytes(header_bytes.try_into()?);
 
-                let latency = now_ms() - sent_timestamp;
-                println!("Latency ms: {}", latency);
+                let time_now = now_ms();
+                let latency = time_now - sent_timestamp;
+                // println!(
+                //     "Latency ms: {} = {} - {}",
+                //     latency, time_now, sent_timestamp
+                // );
                 ot_metrics.latency.record(latency, &[]);
             }
             Err(e) => {
