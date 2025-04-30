@@ -29,10 +29,7 @@ pub fn init_metrics() -> Arc<OtMetrics> {
     // Don't forget to set and export `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` envar.
     std::env::set_var("OTEL_EXPORTER_OTLP_METRICS_PROTOCOL", "grpc");
     std::env::set_var("OTEL_EXPORTER_OTLP_INSECURE", "true");
-    std::env::set_var(
-        "OTEL_RESOURCE_ATTRIBUTES",
-        "service.namespace=abc,service.instance.id=my_instance_0",
-    );
+    std::env::set_var("OTEL_SERVICE_NAME", "quic-test");
 
     let resource = opentelemetry_sdk::Resource::default();
 
