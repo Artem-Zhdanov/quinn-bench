@@ -35,7 +35,7 @@ pub fn configure_client() -> Result<ClientConfig> {
 }
 
 fn get_transport_config() -> std::sync::Arc<wtransport::quinn::TransportConfig> {
-    let mut ack_freq_conf = AckFrequencyConfig::default();
+    // let mut ack_freq_conf = AckFrequencyConfig::default();
     // ack_freq_conf.max_ack_delay(Some(Duration::from_millis(1)));
     // ack_freq_conf.ack_eliciting_threshold(VarInt::from_u32(0));
 
@@ -50,11 +50,12 @@ fn get_transport_config() -> std::sync::Arc<wtransport::quinn::TransportConfig> 
 
     // quic_transport_config.initial_max_stream_data_uni(1024 * 1024); // 1MB per unidirectional stream
     // quic_transport_config.initial_max_data(10 * 1024 * 1024); // 10MB per connection
-    quic_transport_config.datagram_receive_buffer_size(None);
+    //  quic_transport_config.datagram_receive_buffer_size(None);
     quic_transport_config.max_concurrent_uni_streams(VarInt::from_u32(1000));
+
     //quic_transport_config.
     let congestion_proto = wtransport::quinn::congestion::NewRenoConfig::default();
-    let congestion_proto = wtransport::quinn::congestion::BbrConfig::default();
+    // let congestion_proto = wtransport::quinn::congestion::BbrConfig::default();
 
     quic_transport_config.congestion_controller_factory(std::sync::Arc::new(congestion_proto));
 
