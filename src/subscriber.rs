@@ -1,4 +1,5 @@
 use anyhow::Result;
+use tokio::io::AsyncReadExt;
 
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -32,7 +33,7 @@ pub async fn run(metrics: Arc<Metrics>, ot_metrics: Arc<OtMetrics>, port: u16) -
 
         let mut buf = vec![0u8; BLOCK_SIZE];
         // loop {
-        match stream.read_exact(&mut buf).await {
+        match stream.read_to_end(&mut buf).await {
             Ok(_) => {
                 metrics.blocks.fetch_add(1, Ordering::Relaxed);
 
