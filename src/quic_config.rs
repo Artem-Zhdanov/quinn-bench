@@ -46,9 +46,10 @@ fn get_transport_config() -> std::sync::Arc<wtransport::quinn::TransportConfig> 
     quic_transport_config.send_window(40 * 1024 * 1024);
     quic_transport_config.receive_window(VarInt::from_u32(40 * 1024 * 1024));
     quic_transport_config.stream_receive_window(VarInt::from_u32(20 * 1024 * 1024));
-    // quic_transport_config.initial_rtt(Duration::from_millis(1));
 
-    quic_transport_config.max_concurrent_uni_streams(VarInt::from_u32(1000));
+    quic_transport_config.send_fairness(false);
+
+    quic_transport_config.max_concurrent_uni_streams(VarInt::from_u32(10000));
 
     // quic_transport_config.crypto_buffer_size(10000000000);
     //  quic_transport_config.enable_segmentation_offload(true);
@@ -57,6 +58,8 @@ fn get_transport_config() -> std::sync::Arc<wtransport::quinn::TransportConfig> 
     mtu_disc_conf.interval(Duration::from_secs(10));
     mtu_disc_conf.upper_bound(65527);
     quic_transport_config.mtu_discovery_config(Some(mtu_disc_conf));
+
+    // quic_transport_config.enable_segmentation_offload(false);
 
     let congestion_proto = wtransport::quinn::congestion::NewRenoConfig::default();
     // let congestion_proto = wtransport::quinn::congestion::BbrConfig::default();
