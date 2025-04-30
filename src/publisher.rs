@@ -13,18 +13,18 @@ pub async fn run(addr: String, port: u16) -> Result<()> {
     let connection = Endpoint::client(config)?.connect(url).await?;
 
     let mut data = vec![42u8; BLOCK_SIZE];
-    let mut stream = connection.open_uni().await?.await?;
 
     loop {
         let moment = Instant::now();
+        let mut stream = connection.open_uni().await?.await?;
 
         data[0..8].copy_from_slice(&now_ms().to_be_bytes());
 
         match stream.write_all(&data).await {
             Ok(_) => {
-                // if let Err(e) = stream.finish().await {
-                //     eprintln!("Error closing stream: {}", e);
-                // }
+                if let Err(e) = stream.finish().await {
+                    eprintln!("Error closing stream: {}", e);
+                }
             }
             Err(e) => {
                 eprintln!("Error send data: {}", e);

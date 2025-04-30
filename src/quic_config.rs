@@ -50,12 +50,14 @@ fn get_transport_config() -> std::sync::Arc<wtransport::quinn::TransportConfig> 
 
     // quic_transport_config.initial_max_stream_data_uni(1024 * 1024); // 1MB per unidirectional stream
     // quic_transport_config.initial_max_data(10 * 1024 * 1024); // 10MB per connection
-
+    quic_transport_config.datagram_receive_buffer_size(None);
+    // quic_transport_config.datagram_send_buffer_size(None);
+    quic_transport_config.max_concurrent_uni_streams(VarInt::from_u32(1000));
     //quic_transport_config.
+    let congestion_proto = wtransport::quinn::congestion::NewRenoConfig::default();
+    let congestion_proto = wtransport::quinn::congestion::BbrConfig::default();
 
-    quic_transport_config.congestion_controller_factory(std::sync::Arc::new(
-        wtransport::quinn::congestion::NewRenoConfig::default(),
-    ));
+    quic_transport_config.congestion_controller_factory(std::sync::Arc::new(congestion_proto));
 
     std::sync::Arc::new(quic_transport_config)
     // std::sync::Arc::new(QuicTransportConfig::default())
