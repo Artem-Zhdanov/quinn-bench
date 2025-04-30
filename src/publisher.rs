@@ -12,32 +12,30 @@ pub async fn run(addr: String, port: u16) -> Result<()> {
     let url = format!("https://{}:{}", addr, port);
     let connection = Endpoint::client(config)?.connect(url).await?;
 
-    let mut data = vec![42u8; BLOCK_SIZE];
-    let mut stream = connection.open_uni().await?.await?;
+    for _ in 0..2 {
+        let conn_clone = connection.clone();
 
-    loop {
-        let moment = Instant::now();
+        tokio::spawn(async move {
+            let mut data = vec![42u8; BLOCK_SIZE];
 
-        data[0..8].copy_from_slice(&now_ms().to_be_bytes());
+            loop {
+                let mut stream = conn_clone.open_uni().await.unwrap().await.unwrap();
 
-        match stream.write_all(&data).await {
-            Ok(_) => {
-                // if let Err(e) = stream.finish().await {
-                //     eprintln!("Error closing stream: {}", e);
-                // }
+                data[0..8].copy_from_slice(&now_ms().to_be_bytes());
+
+                match stream.write_all(&data).await {
+                    Ok(_) => {
+                        // if let Err(e) = stream.finish().await {
+                        //     eprintln!("Error closing stream: {}", e);
+                        // }
+                    }
+                    Err(e) => {
+                        eprintln!("Error send data: {}", e);
+                        //  anyhow::bail!(e);
+                    }
+                }
             }
-            Err(e) => {
-                eprintln!("Error send data: {}", e);
-                anyhow::bail!(e);
-            }
-        }
-        // tokio::task::yield_now().await;
-        let elapsed = moment.elapsed().as_millis() as u64;
-        if elapsed < 330 {
-            // tokio::task::yield_now().await
-            // tokio::time::sleep(Duration::from_millis(330 - elapsed)).await;
-        } else {
-            eprintln!("Elapsed time is too long: {} ms", elapsed);
-        }
+        });
     }
+    Ok(())
 }
