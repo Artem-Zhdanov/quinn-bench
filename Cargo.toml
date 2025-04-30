@@ -24,6 +24,9 @@ wtransport = { version = "0.6.1", features = [
     "quinn",
     "dangerous-configuration",
 ] }
+opentelemetry = { version = "0.27", features = ["metrics"] }
+opentelemetry-otlp = { version = "0.27", features = ["metrics"] }
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
 
 [profile.release]
 opt-level = 3
