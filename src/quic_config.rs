@@ -47,10 +47,14 @@ fn get_transport_config() -> std::sync::Arc<wtransport::quinn::TransportConfig> 
     quic_transport_config.receive_window(VarInt::from_u32(4 * 1024 * 1024));
     quic_transport_config.stream_receive_window(VarInt::from_u32(2 * 1024 * 1024));
     quic_transport_config.initial_rtt(Duration::from_millis(1));
-    // quic_transport_config.congestion_controller_factory(std::sync::Arc::new(
-    //     wtransport::quinn::congestion::BbrConfig::default(),
-    // ));
 
-    std::sync::Arc::new(quic_transport_config)
-    // let trans_conf = std::sync::Arc::new(QuicTransportConfig::default());
+    // quic_transport_config.initial_max_stream_data_uni(1024 * 1024); // 1MB per unidirectional stream
+    // quic_transport_config.initial_max_data(10 * 1024 * 1024); // 10MB per connection
+
+    quic_transport_config.congestion_controller_factory(std::sync::Arc::new(
+        wtransport::quinn::congestion::BbrConfig::default(),
+    ));
+
+    //std::sync::Arc::new(quic_transport_config)
+    std::sync::Arc::new(QuicTransportConfig::default())
 }
