@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
     let metrics: Arc<Metrics> = Arc::new(Metrics::new());
 
     // Run subscribers
-    for Subscriber { ports } in config.subscribers {
+    for Subscriber { ports } in config.subscriber {
         for port in ports_string_to_vec(&ports)? {
             let metrics_clone = metrics.clone();
             let ot_metrics_clone = ot_metrics.clone();

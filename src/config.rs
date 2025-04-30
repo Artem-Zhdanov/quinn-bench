@@ -10,7 +10,7 @@ pub const BLOCK_SIZE: usize = 300 * 1024;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
-    pub subscribers: Vec<Subscriber>,
+    pub subscriber: Vec<Subscriber>,
     pub publisher: Vec<ActiveSubscribers>,
 }
 

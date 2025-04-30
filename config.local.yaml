@@ -1,6 +1,6 @@
 # We can have from zero to many running subscribers
-# Each subscriber binds to this address
-subscribers:
+# Each subscriber binds to these ports on all interfaces
+subscriber:
   - ports: "5000-5099"
 
 # We have only one publisher that sends blocks to its subscribers
