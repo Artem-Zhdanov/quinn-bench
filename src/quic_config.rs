@@ -59,6 +59,6 @@ fn get_transport_config() -> std::sync::Arc<wtransport::quinn::TransportConfig> 
 
     quic_transport_config.congestion_controller_factory(std::sync::Arc::new(congestion_proto));
 
-    std::sync::Arc::new(quic_transport_config)
-    // std::sync::Arc::new(QuicTransportConfig::default())
+    // std::sync::Arc::new(quic_transport_config)
+    std::sync::Arc::new(QuicTransportConfig::default())
 }
