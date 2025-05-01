@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
     let config = match read_yaml::<Config>(&cli.config) {
         Ok(config) => config,
         Err(error) => {
-            eprintln!("Error parsing config file {:?}: {:?}", cli.config, error);
+            tracing::error!("Error parsing config file {:?}: {:?}", cli.config, error);
             std::process::exit(1);
         }
     };
@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
             let ot_metrics_clone = ot_metrics.clone();
             let _ = tokio::spawn(async move {
                 if let Err(err) = subscriber::run(metrics_clone, ot_metrics_clone, port).await {
-                    eprintln!("Subscriber error: {}", err);
+                    tracing::error!("Subscriber error: {}", err);
                 }
             });
         }
@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
             let addr_clone = addr.clone();
             let _ = tokio::spawn(async move {
                 if let Err(err) = publisher::run(addr_clone, port).await {
-                    eprintln!("Publisher task failed: {}", err);
+                    tracing::error!("Publisher task failed: {}", err);
                 }
             });
         }
@@ -58,7 +58,7 @@ async fn main() -> Result<()> {
     let metrics_clone = metrics.clone();
     let _report_handle = tokio::spawn(async {
         if let Err(e) = run_report(metrics_clone).await {
-            eprintln!("Report task failed: {}", e);
+            tracing::error!("Report task failed: {}", e);
         }
     });
 
@@ -85,15 +85,16 @@ async fn run_report(metrics: Arc<Metrics>) -> Result<()> {
         let moment_speed_bytes = ((delta_bytes * 1_000_000) / delta_micros as usize) as f64;
         let moment_speed_blocks = ((delta_blocks * 1_000_000) / delta_micros as usize) as f64;
 
-        println!(
+        tracing::info!(
             "Speed {:.2} GB, ({}) blocks",
             moment_speed_bytes / (1024.0 * 1024.0 * 1024.0),
             moment_speed_blocks
         );
 
-        println!(
+        tracing::info!(
             "Totals: bytes {}, blocks: {}\n-------------------------------",
-            bytes, blocks
+            bytes,
+            blocks
         );
 
         prev_bytes = bytes;

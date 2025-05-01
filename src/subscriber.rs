@@ -1,5 +1,4 @@
 use anyhow::Result;
-use tokio::io::AsyncReadExt;
 
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -42,15 +41,17 @@ pub async fn run(metrics: Arc<Metrics>, ot_metrics: Arc<OtMetrics>, port: u16) -
 
                     let time_now = now_ms();
                     let latency = time_now - sent_timestamp;
-                    // println!(
-                    //     "Latency ms: {} = {} - {}",
-                    //     latency, time_now, sent_timestamp
-                    // );
+                    tracing::info!(
+                        "Latency ms: {} = {} - {}",
+                        latency,
+                        time_now,
+                        sent_timestamp
+                    );
                     ot_metrics.latency.record(latency, &[]);
                 }
                 Err(e) => {
-                    eprintln!("Error reading: {}", e);
-                    // break;
+                    tracing::error!("Error reading: {}", e);
+                    break;
                 }
             }
         }

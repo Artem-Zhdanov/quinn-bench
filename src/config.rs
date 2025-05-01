@@ -1,10 +1,6 @@
-use anyhow::Result;
 use clap::{arg, Parser};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{
-    net::{SocketAddr, ToSocketAddrs},
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 pub const BLOCK_SIZE: usize = 300 * 1024;
 

@@ -19,7 +19,7 @@ pub fn configure_server(port: u16) -> Result<ServerConfig> {
     config
         .quic_config_mut()
         .transport_config(get_transport_config());
-    println!("CONFIG: {:#?}", config);
+    tracing::info!("CONFIG: {:#?}", config);
     Ok(config)
 }
 

@@ -1,6 +1,4 @@
-use opentelemetry::metrics::Gauge;
 use opentelemetry::metrics::Histogram;
-use opentelemetry::KeyValue;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 use std::time::Duration;

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::time::Duration;
 use std::time::Instant;
+use tokio::io::AsyncWriteExt;
 use wtransport::Endpoint;
 
 use crate::config::BLOCK_SIZE;
@@ -22,21 +23,21 @@ pub async fn run(addr: String, port: u16) -> Result<()> {
 
         match stream.write_all(&data).await {
             Ok(_) => {
-                //   if let Err(e) = stream.finish().await {
-                //       eprintln!("Error closing stream: {}", e);
-                //    }
+                if let Err(e) = stream.flush().await {
+                    tracing::error!("Error closing stream: {}", e);
+                }
             }
             Err(e) => {
-                eprintln!("Error send data: {}", e);
+                tracing::error!("Error send data: {}", e);
                 anyhow::bail!(e);
             }
         }
         // tokio::task::yield_now().await;
-        // let elapsed = moment.elapsed().as_millis() as u64;
-        // if elapsed < 330 {
-        //     tokio::time::sleep(Duration::from_millis(330 - elapsed)).await;
-        // } else {
-        //     eprintln!("Elapsed time is too long: {} ms", elapsed);
-        // }
+        let elapsed = moment.elapsed().as_millis() as u64;
+        if elapsed < 330 {
+            tokio::time::sleep(Duration::from_millis(330 - elapsed)).await;
+        } else {
+            tracing::error!("Elapsed time is too long: {} ms", elapsed);
+        }
     }
 }
