@@ -59,13 +59,19 @@ fn get_transport_config() -> std::sync::Arc<wtransport::quinn::TransportConfig> 
     mtu_disc_conf.upper_bound(65527);
     quic_transport_config.mtu_discovery_config(Some(mtu_disc_conf));
 
+    quic_transport_config.initial_mtu(1460);
+    quic_transport_config.min_mtu(1460);
+
     // quic_transport_config.enable_segmentation_offload(false);
 
-    let congestion_proto = wtransport::quinn::congestion::NewRenoConfig::default();
+    let mut congestion_proto = wtransport::quinn::congestion::NewRenoConfig::default();
     // let congestion_proto = wtransport::quinn::congestion::BbrConfig::default();
+    congestion_proto.initial_window(300000);
 
     quic_transport_config.congestion_controller_factory(std::sync::Arc::new(congestion_proto));
 
     std::sync::Arc::new(quic_transport_config)
     //std::sync::Arc::new(QuicTransportConfig::default())
 }
+
+// https://github.com/quinn-rs/quinn/issues/1372
