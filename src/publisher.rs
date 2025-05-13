@@ -13,9 +13,9 @@ pub async fn run(addr: String, port: u16) -> Result<()> {
     let connection = Endpoint::client(config)?.connect(url).await?;
 
     let mut data = vec![42u8; BLOCK_SIZE];
-    let mut stream = connection.open_uni().await?.await?;
 
     loop {
+        let mut stream = connection.open_uni().await?.await?;
         let moment = Instant::now();
 
         data[0..8].copy_from_slice(&now_ms().to_be_bytes());

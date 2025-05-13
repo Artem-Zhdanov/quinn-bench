@@ -28,33 +28,33 @@ pub async fn run(metrics: Arc<Metrics>, ot_metrics: Arc<OtMetrics>, port: u16) -
     let metrics_clone = metrics.clone();
 
     while let Ok(mut stream) = connection.accept_uni().await {
-        let metrics = metrics_clone.clone();
+        // let metrics = metrics_clone.clone();
 
         let mut buf: Vec<u8> = vec![42; BLOCK_SIZE];
-        loop {
-            match stream.read_exact(&mut buf).await {
-                Ok(_) => {
-                    metrics.blocks.fetch_add(1, Ordering::Relaxed);
-                    let header_bytes = &buf[0..8];
+        //loop {
+        match stream.read_exact(&mut buf).await {
+            Ok(_) => {
+                //   metrics.blocks.fetch_add(1, Ordering::Relaxed);
+                let header_bytes = &buf[0..8];
 
-                    let sent_timestamp = u64::from_be_bytes(header_bytes.try_into()?);
+                let sent_timestamp = u64::from_be_bytes(header_bytes.try_into()?);
 
-                    let time_now = now_ms();
-                    let latency = time_now - sent_timestamp;
-                    tracing::info!(
-                        "Latency ms: {} = {} - {}",
-                        latency,
-                        time_now,
-                        sent_timestamp
-                    );
-                    ot_metrics.latency.record(latency, &[]);
-                }
-                Err(e) => {
-                    tracing::error!("Error reading: {}", e);
-                    break;
-                }
+                let time_now = now_ms();
+                let latency = time_now - sent_timestamp;
+                tracing::info!(
+                    "Latency ms: {} = {} - {}",
+                    latency,
+                    time_now,
+                    sent_timestamp
+                );
+                ot_metrics.latency.record(latency, &[]);
+            }
+            Err(e) => {
+                tracing::error!("Error reading: {}", e);
+                break;
             }
         }
+        // }
     }
     Ok(())
 }
