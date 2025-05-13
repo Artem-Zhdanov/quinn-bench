@@ -1,4 +1,4 @@
 subscriber:
-  - ports: "5001-5100"
+  - ports: "5000-5059"
 
 publisher:
