@@ -1,11 +1,10 @@
 use opentelemetry::metrics::Histogram;
-use std::sync::atomic::AtomicUsize;
-use std::sync::Arc;
-use std::time::Duration;
-
 use opentelemetry_sdk::metrics::PeriodicReader;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::runtime::Tokio;
+use std::sync::atomic::AtomicUsize;
+use std::sync::Arc;
+use std::time::Duration;
 
 #[derive(Debug, Default)]
 pub struct Metrics {

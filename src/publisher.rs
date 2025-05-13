@@ -1,5 +1,4 @@
 use anyhow::Result;
-use std::time::Duration;
 use std::time::Instant;
 use tokio::io::AsyncWriteExt;
 use wtransport::Endpoint;
@@ -32,10 +31,10 @@ pub async fn run(addr: String, port: u16) -> Result<()> {
                 anyhow::bail!(e);
             }
         }
-        // tokio::task::yield_now().await;
         let elapsed = moment.elapsed().as_millis() as u64;
         if elapsed < 330 {
-            tokio::time::sleep(Duration::from_millis(330 - elapsed)).await;
+            //    tokio::time::sleep(Duration::from_millis(330 - elapsed)).await;
+            tokio::task::yield_now().await;
         } else {
             tracing::error!("Elapsed time is too long: {} ms", elapsed);
         }

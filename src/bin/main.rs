@@ -45,9 +45,13 @@ async fn main() -> Result<()> {
 
     // Run publisher
     for ActiveSubscribers { addr, ports } in config.publisher {
-        for port in ports_string_to_vec(&ports)? {
+        let ports = ports_string_to_vec(&ports)?;
+        let delta = 330000 / ports.len() as u64;
+
+        for (i, port) in ports.into_iter().enumerate() {
             let addr_clone = addr.clone();
             let _ = tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_micros(i as u64 * delta)).await;
                 if let Err(err) = publisher::run(addr_clone, port).await {
                     tracing::error!("Publisher task failed: {}", err);
                 }
