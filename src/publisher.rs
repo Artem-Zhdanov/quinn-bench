@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use wtransport::Endpoint;
 
