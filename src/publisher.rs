@@ -33,8 +33,8 @@ pub async fn run(addr: String, port: u16) -> Result<()> {
         }
         let elapsed = moment.elapsed().as_millis() as u64;
         if elapsed < 330 {
-            //    tokio::time::sleep(Duration::from_millis(330 - elapsed)).await;
-            tokio::task::yield_now().await;
+            tokio::time::sleep(Duration::from_millis(330 - elapsed)).await;
+            // tokio::task::yield_now().await;
         } else {
             tracing::error!("Elapsed time is too long: {} ms", elapsed);
         }
