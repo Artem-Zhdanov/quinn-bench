@@ -59,50 +59,6 @@ async fn main() -> Result<()> {
         }
     }
 
-    let metrics_clone = metrics.clone();
-    let _report_handle = tokio::spawn(async {
-        if let Err(e) = run_report(metrics_clone).await {
-            tracing::error!("Report task failed: {}", e);
-        }
-    });
-
     tokio::signal::ctrl_c().await?;
     Ok(())
-}
-
-async fn run_report(metrics: Arc<Metrics>) -> Result<()> {
-    let moment = Instant::now();
-    let mut prev_bytes = 0;
-    let mut prev_blocks = 0;
-    let mut prev_micros = 0;
-    loop {
-        sleep(Duration::from_secs(1)).await;
-
-        let bytes = metrics.bytes.load(Ordering::Relaxed);
-        let blocks = metrics.blocks.load(Ordering::Relaxed);
-        let micros = moment.elapsed().as_micros();
-
-        let delta_bytes = bytes - prev_bytes;
-        let delta_blocks = blocks - prev_blocks;
-
-        let delta_micros = micros - prev_micros;
-        let moment_speed_bytes = ((delta_bytes * 1_000_000) / delta_micros as usize) as f64;
-        let moment_speed_blocks = ((delta_blocks * 1_000_000) / delta_micros as usize) as f64;
-
-        tracing::info!(
-            "Speed {:.2} GB, ({}) blocks",
-            moment_speed_bytes / (1024.0 * 1024.0 * 1024.0),
-            moment_speed_blocks
-        );
-
-        tracing::info!(
-            "Totals: bytes {}, blocks: {}\n-------------------------------",
-            bytes,
-            blocks
-        );
-
-        prev_bytes = bytes;
-        prev_blocks = blocks;
-        prev_micros = micros;
-    }
 }
